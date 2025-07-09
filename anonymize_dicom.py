@@ -11,48 +11,56 @@ logging.basicConfig(
 )
 
 # A list of tags to anonymize, based on DICOM PS3.15, Annex E.
-TAGS_TO_ANONYMIZE = [
-    # Patient Information
-    (0x0010, 0x0010),  # Patient's Name
-    (0x0010, 0x0020),  # Patient ID
-    (0x0010, 0x0021),  # Issuer of Patient ID
-    (0x0010, 0x0030),  # Patient's Birth Date
-    (0x0010, 0x0032),  # Patient's Birth Time
-    (0x0010, 0x0040),  # Patient's Sex
-    (0x0010, 0x1000),  # Other Patient IDs
-    (0x0010, 0x1001),  # Other Patient Names
-    (0x0010, 0x1002),  # Other Patient IDs Sequence
-    (0x0010, 0x1010),  # Patient's Age
-    (0x0010, 0x1020),  # Patient's Size
-    (0x0010, 0x1030),  # Patient's Weight
-    (0x0010, 0x1040),  # Patient's Address
-    (0x0010, 0x2160),  # Ethnic Group
-    (0x0010, 0x2180),  # Occupation
-    (0x0010, 0x21B0),  # Additional Patient History
-    (0x0010, 0x4000),  # Patient Comments
-    # Physician Information
-    (0x0008, 0x0080),  # Institution Name
-    (0x0008, 0x0081),  # Institution Address
-    (0x0008, 0x0090),  # Referring Physician's Name
-    (0x0008, 0x0092),  # Referring Physician's Address
-    (0x0008, 0x0094),  # Referring Physician's Telephone Numbers
-    (0x0008, 0x1050),  # Performing Physician's Name
-    (0x0008, 0x1070),  # Operators' Name
-    # Study Information that may be identifying
-    (0x0008, 0x1030),  # Study Description
-    (0x0008, 0x0050),  # Accession Number
-    (0x0032, 0x1032),  # Requesting Physician
-    # Equipment Information that may be identifying
-    (0x0008, 0x1010),  # Station Name
-    # UIDs to be replaced with new ones
-    (0x0020, 0x000D),  # Study Instance UID
-    (0x0020, 0x000E),  # Series Instance UID
-    (0x0008, 0x0018),  # SOP Instance UID
-    (0x0020, 0x0052),  # Frame of Reference UID
+TAGS_TO_ANONYMIZE_BY_GROUP = {
+    "Patient Information": [
+        (0x0010, 0x0010),  # Patient's Name
+        (0x0010, 0x0020),  # Patient ID
+        (0x0010, 0x0021),  # Issuer of Patient ID
+        (0x0010, 0x0030),  # Patient's Birth Date
+        (0x0010, 0x0032),  # Patient's Birth Time
+        (0x0010, 0x0040),  # Patient's Sex
+        (0x0010, 0x1000),  # Other Patient IDs
+        (0x0010, 0x1001),  # Other Patient Names
+        (0x0010, 0x1002),  # Other Patient IDs Sequence
+        (0x0010, 0x1010),  # Patient's Age
+        (0x0010, 0x1020),  # Patient's Size
+        (0x0010, 0x1030),  # Patient's Weight
+        (0x0010, 0x1040),  # Patient's Address
+        (0x0010, 0x2160),  # Ethnic Group
+        (0x0010, 0x2180),  # Occupation
+        (0x0010, 0x21B0),  # Additional Patient History
+        (0x0010, 0x4000),  # Patient Comments
+    ],
+    "Physician Information": [
+        (0x0008, 0x0080),  # Institution Name
+        (0x0008, 0x0081),  # Institution Address
+        (0x0008, 0x0090),  # Referring Physician's Name
+        (0x0008, 0x0092),  # Referring Physician's Address
+        (0x0008, 0x0094),  # Referring Physician's Telephone Numbers
+        (0x0008, 0x1050),  # Performing Physician's Name
+        (0x0008, 0x1070),  # Operators' Name
+    ],
+    "Study Information": [
+        (0x0008, 0x1030),  # Study Description
+        (0x0008, 0x0050),  # Accession Number
+        (0x0032, 0x1032),  # Requesting Physician
+    ],
+    "Equipment Information": [(0x0008, 0x1010)],  # Station Name
+    "UIDs": [
+        (0x0020, 0x000D),  # Study Instance UID
+        (0x0020, 0x000E),  # Series Instance UID
+        (0x0008, 0x0018),  # SOP Instance UID
+        (0x0020, 0x0052),  # Frame of Reference UID
+    ],
+}
+
+# A flattened list of all tags for easier processing
+ALL_TAGS_TO_ANONYMIZE = [
+    tag for group_tags in TAGS_TO_ANONYMIZE_BY_GROUP.values() for tag in group_tags
 ]
 
 
-def anonymize_dicom_file(input_path, output_path):
+def anonymize_dicom_file(input_path, output_path, tags_to_anonymize):
     """
     Anonymizes a single DICOM file by removing or replacing specific tags.
     Returns True on success, False on failure.
@@ -64,7 +72,7 @@ def anonymize_dicom_file(input_path, output_path):
         return False
 
     # Anonymize specific tags
-    for group, element in TAGS_TO_ANONYMIZE:
+    for group, element in tags_to_anonymize:
         tag = (group, element)
         if tag in ds:
             vr = ds[tag].VR
@@ -115,13 +123,62 @@ st.info(
     "Always verify anonymization meets your legal and ethical requirements."
 )
 
+st.header("Anonymization Options")
+st.write("Select the DICOM tags you want to anonymize:")
+
+# Create a mapping from tag tuple to a descriptive string for display
+TAG_DESCRIPTIONS = {
+    tag: f"({tag[0]:04X}, {tag[1]:04X}) - {pydicom.datadict.dictionary_description(tag) or 'Unknown Tag'}"
+    for tag in ALL_TAGS_TO_ANONYMIZE
+}
+
+# Initialize session state for each tag's checkbox if not already present.
+# This ensures that selections are preserved across reruns.
+for tag in ALL_TAGS_TO_ANONYMIZE:
+    if f"tag_{tag}" not in st.session_state:
+        st.session_state[f"tag_{tag}"] = True  # Default to selected
+
+
+# Callback to update all tags when "Select All" is clicked
+def select_all_callback():
+    select_all_state = st.session_state.select_all_checkbox
+    for tag in ALL_TAGS_TO_ANONYMIZE:
+        st.session_state[f"tag_{tag}"] = select_all_state
+
+
+# Determine the current state of the "Select All" checkbox
+all_selected = all(st.session_state[f"tag_{tag}"] for tag in ALL_TAGS_TO_ANONYMIZE)
+
+st.checkbox(
+    "Select/Deselect All",
+    value=all_selected,
+    key="select_all_checkbox",
+    on_change=select_all_callback,
+)
+
+st.markdown("---")
+
+# Display checkboxes for each tag, grouped by category
+selected_tags = []
+for group_name, group_tags in TAGS_TO_ANONYMIZE_BY_GROUP.items():
+    with st.expander(group_name, expanded=False):
+        cols = st.columns(2)
+        for i, tag in enumerate(group_tags):
+            with cols[i % 2]:
+                is_checked = st.checkbox(TAG_DESCRIPTIONS[tag], key=f"tag_{tag}")
+                if is_checked:
+                    selected_tags.append(tag)
+
+
 input_dir = st.text_input(
     "Enter the full path to the directory containing DICOM files:",
     placeholder="e.g., C:/Users/YourUser/Desktop/DICOM_data",
 )
 
 if st.button("Anonymize Directory"):
-    if input_dir and os.path.isdir(input_dir):
+    if not selected_tags:
+        st.warning("Please select at least one tag to anonymize.")
+    elif input_dir and os.path.isdir(input_dir):
         output_dir = os.path.join(input_dir, "anonymized")
 
         with st.spinner(f"Scanning directory: {input_dir}..."):
@@ -146,7 +203,7 @@ if st.button("Anonymize Directory"):
                 relative_path = os.path.relpath(file_path, input_dir)
                 output_file_path = os.path.join(output_dir, relative_path)
 
-                if anonymize_dicom_file(file_path, output_file_path):
+                if anonymize_dicom_file(file_path, output_file_path, selected_tags):
                     anonymized_count += 1
 
                 # Update progress bar
