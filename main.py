@@ -2,17 +2,7 @@ import subprocess
 import sys
 
 
-def install_packages():
-    """Install packages from requirements.txt."""
-    print("Checking and installing required packages...")
-    try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
-        print("Packages installed successfully.")
-    except subprocess.CalledProcessError as e:
-        print(f"Error installing packages: {e}")
-        sys.exit(1)
-
-def run_anonymizer(port=8503):
+def run_anonymizer(port):
     """Run the Streamlit app."""
     print("Starting the Streamlit app...")
     try:
@@ -28,11 +18,8 @@ def run_anonymizer(port=8503):
 if __name__ == "__main__":
     print("Starting setup script...")
 
-    # Install dependencies
-    install_packages()
-
     # Define a default port and check for a command-line argument
-    port_number = 8503
+    port_number = 8504
     if len(sys.argv) > 1:
         try:
             port_number = int(sys.argv[1])

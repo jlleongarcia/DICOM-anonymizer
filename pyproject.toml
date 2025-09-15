@@ -1,0 +1,10 @@
+[project]
+name = "dicom-anonymizer"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pydicom==3.0.1",
+    "streamlit==1.45.1",
+]
