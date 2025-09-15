@@ -2,15 +2,16 @@ import subprocess
 import sys
 
 
-def run_anonymizer(port):
+def run_app(port):
     """Run the Streamlit app."""
-    print("Starting the Streamlit app...")
+    print(f"Starting the Streamlit app on port {port}...")
     try:
-        command = [
-            sys.executable, "-m", "streamlit", "run", "anonymize_dicom.py",
-            "--server.port", str(port)
-        ]
-        subprocess.check_call(command)
+        subprocess.check_call([
+            sys.executable, "-m", "streamlit", "run", "menu_analyzer.py",
+            "--server.address=0.0.0.0", # Make Streamlit accessible to all interfaces
+            f"--server.port={port}",
+            "--server.headless", "true" # Avoid asking for email 
+        ])
     except subprocess.CalledProcessError as e:
         print(f"Error running Streamlit app: {e}")
         sys.exit(1)
@@ -27,4 +28,4 @@ if __name__ == "__main__":
             print(f"Invalid port number '{sys.argv[1]}'. Using default port {port_number}.")
 
     # Run the anonymizer script
-    run_anonymizer(port=port_number)
+    run_app(port=port_number)
