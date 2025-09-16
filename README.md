@@ -24,38 +24,15 @@ A simple, web-based tool to anonymize DICOM files. Built with Python, Streamlit,
     cd DICOM-anonymizer
     ```
 
-2.  **Create a virtual environment (recommended):**
-    ```bash
-    # For macOS/Linux
-    python3 -m venv myvenv
-    source myvenv/bin/activate
+2.  **Create a virtual environment and install dependencies:****
+    
+    Having uv installed in your PC:
 
-    # For Windows
-    python -m venv myvenv
-    myvenv\Scripts\activate
+    ```bash
+    uv run main.py
     ```
 
-3.  **Install dependencies:**
-    The project comes with a setup script that handles this automatically when you run it. Alternatively, you can install the dependencies manually:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-## Usage
-
-The easiest way to run the application is by using the provided `exe_anonymizer.py` script. This will first install the required packages and then launch the web application.
-
-```bash
-python exe_anonymizer.py
-```
-
-By default, the application will run on port `8503`. You can specify a different port as a command-line argument:
-
-```bash
-python exe_anonymizer.py 8000
-```
-
-Once the application is running, open your web browser and navigate to the URL provided in your terminal (e.g., `http://localhost:8503`).
+Once the application is running, open your web browser and navigate to the URL provided in your terminal (e.g., `http://localhost:8504`).
 
 ### How to Use the Interface
 
