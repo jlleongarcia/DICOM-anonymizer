@@ -1,0 +1,8 @@
+services:
+  dicom-anonymizer:
+    image: ghcr.io/jlleongarcia/dicom-anonymizer:latest
+    build: .
+    container_name: dicom-anonymizer
+    ports:
+      - "8504:8504"
+    restart: always

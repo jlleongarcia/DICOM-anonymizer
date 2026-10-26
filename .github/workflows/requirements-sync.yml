@@ -1,0 +1,24 @@
+name: Check requirements.txt sync
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Check uv.lock matches pyproject.toml
+        run: uv lock --check
+
+      - name: Check requirements.txt matches uv.lock
+        run: |
+          uv export --format requirements-txt --no-hashes --no-dev --no-emit-project --frozen -o requirements.txt
+          git diff --exit-code requirements.txt || {
+            echo "::error file=requirements.txt::requirements.txt is out of sync with uv.lock. Regenerate it with the uv export command in the README."
+            exit 1
+          }
