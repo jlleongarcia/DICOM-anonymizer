@@ -8,7 +8,7 @@ A simple, web-based tool to anonymize and edit DICOM files. Built with Python, S
 - **Upload-based workflow:** upload a whole folder, individual DICOM files or a ZIP archive from the browser, up to 500 MB per file, and download the results. Nothing is written to disk on the server.
 - **Selective anonymization:** choose which DICOM tags to anonymize from a predefined list based on DICOM standards.
 - **Folder structure preserved:** when you upload a folder or a ZIP archive, the anonymized ZIP keeps the same subfolders and file names.
-- **Tag editing:** a second tab lets you set new values for common tags (or any tag by keyword/number) and download the modified files individually or as a ZIP.
+- **Tag editing:** a second tab lets you set new values for common tags (or any tag by keyword/number) across a whole folder, individual files or a ZIP archive, and download the results.
 - **UID regeneration:** automatically generates new, unique UIDs for `Study Instance UID`, `Series Instance UID`, `SOP Instance UID`, etc.
 - **Private tag removal:** strips private tags from the files.
 - **Progress tracking:** a progress bar shows the status of the anonymization process.
@@ -116,10 +116,10 @@ The app has two tabs. Both work on files uploaded from the browser; the original
 
 ### Modify Tags
 
-1. **Upload files:** drag and drop one or more `.dcm` files into the uploader.
+1. **Upload:** as in the Anonymize Files tab, choose **Folder** or **Files or ZIP archive**. Files that aren't DICOM are skipped and listed after processing.
 2. **Set values:** fill in new values for the common tags shown, and/or add rows in the "Other tags" table for any tag by keyword (e.g. `PatientName`) or number (e.g. `0010,0010`). Blank common-tag fields are left unchanged; use `\` to separate multiple values.
-3. **Apply:** click "Apply modifications". A per-file report shows which tags were updated or added.
-4. **Download:** download each modified file (named `<name>_modified.dcm`) individually, or grab them all as a single ZIP.
+3. **Apply:** click "Apply modifications". A summary table shows, for each tag, how many files had it updated, added or failed. Any failures are listed with the file and the reason.
+4. **Download:** a single file is downloaded as `<name>_modified.dcm`. Several files are downloaded as `modified_dicom.zip`, keeping the original file names and, for folder and ZIP uploads, the original folder structure.
 
 ## How it works
 
