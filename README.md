@@ -5,9 +5,9 @@ A simple, web-based tool to anonymize and edit DICOM files. Built with Python, S
 ## Features
 
 - **User-friendly web interface** built with Streamlit.
-- **Upload-based workflow:** upload DICOM files (or a ZIP archive of folders) from the browser, up to 500 MB per file, and download the results. Nothing is written to disk on the server.
+- **Upload-based workflow:** upload a whole folder, individual DICOM files or a ZIP archive from the browser, up to 500 MB per file, and download the results. Nothing is written to disk on the server.
 - **Selective anonymization:** choose which DICOM tags to anonymize from a predefined list based on DICOM standards.
-- **Folder structure preserved:** when you upload a ZIP archive, the anonymized ZIP keeps the same folders and file names.
+- **Folder structure preserved:** when you upload a folder or a ZIP archive, the anonymized ZIP keeps the same subfolders and file names.
 - **Tag editing:** a second tab lets you set new values for common tags (or any tag by keyword/number) and download the modified files individually or as a ZIP.
 - **UID regeneration:** automatically generates new, unique UIDs for `Study Instance UID`, `Series Instance UID`, `SOP Instance UID`, etc.
 - **Private tag removal:** strips private tags from the files.
@@ -106,11 +106,13 @@ The app has two tabs. Both work on files uploaded from the browser; the original
 ### Anonymize Files
 
 1. **Select tags:** the application lists DICOM tags recommended for anonymization, grouped by category. By default, all are selected. You can expand the categories and deselect any tags you wish to keep.
-2. **Upload files:** drag and drop one or more DICOM files, or a ZIP archive containing them. Any file name is accepted, since DICOM files often have no extension; files that aren't DICOM are skipped and listed after processing.
-3. **Anonymize:** click "Anonymize files".
-4. **Download:** a single file is downloaded as `<name>_anonymized.dcm`. Several files are downloaded as `anonymized_dicom.zip`, keeping the original file names and, for ZIP uploads, the original folder structure.
+2. **Choose what to upload:**
+   - **Folder:** select a folder; all files in it and its subfolders are uploaded. Use this to anonymize a whole study.
+   - **Files or ZIP archive:** drag and drop one or more DICOM files, or ZIP archives containing them.
 
-> **Tip:** to anonymize a whole study folder, compress it into a ZIP archive and upload the archive.
+   Any file name is accepted, since DICOM files often have no extension; files that aren't DICOM are skipped and listed after processing.
+3. **Anonymize:** click "Anonymize files".
+4. **Download:** a single file is downloaded as `<name>_anonymized.dcm`. Several files are downloaded as `anonymized_dicom.zip`, keeping the original file names and, for folder and ZIP uploads, the original folder structure.
 
 ### Modify Tags
 
@@ -136,7 +138,7 @@ The anonymization logic is based on the recommendations in **DICOM Standard PS3.
 |---|---|
 | Python | ≥ 3.13 |
 | [Streamlit](https://streamlit.io/) | 1.66.1 |
-| [pydicom](https://pydicom.github.io/) | 3.0.1 |
+| [pydicom](https://pydicom.github.io/) | 3.0.2 |
 
 `uv.lock` is the source of truth. `requirements.txt` is generated from it for the Docker image, so both ways of running the app use exactly the same versions.
 

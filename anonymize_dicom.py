@@ -315,20 +315,35 @@ def render_anonymize_tab():
 
     st.markdown("---")
 
-    # No type filter: DICOM files often have no extension. Non-DICOM files are
-    # skipped during processing, and ZIP archives keep their folder structure.
-    uploaded_files = st.file_uploader(
-        "Upload DICOM files, or a ZIP archive containing them",
-        accept_multiple_files=True,
-        key="anonymize_uploader",
+    upload_mode = st.radio(
+        "What do you want to upload?",
+        ["Folder", "Files or ZIP archive"],
+        horizontal=True,
+        key="anonymize_upload_mode",
     )
+
+    # No type filter: DICOM files often have no extension. Non-DICOM files are
+    # skipped during processing. Folder uploads name each file by its path
+    # relative to the folder, so folders and ZIPs both keep their structure.
+    if upload_mode == "Folder":
+        uploaded_files = st.file_uploader(
+            "Upload a folder containing DICOM files (subfolders included)",
+            accept_multiple_files="directory",
+            key="anonymize_folder_uploader",
+        )
+    else:
+        uploaded_files = st.file_uploader(
+            "Upload DICOM files, or a ZIP archive containing them",
+            accept_multiple_files=True,
+            key="anonymize_uploader",
+        )
 
     if st.button("Anonymize files", key="anonymize_btn"):
         if not selected_tags:
             st.warning("Please select at least one tag to anonymize.")
             return
         if not uploaded_files:
-            st.warning("Please upload at least one DICOM file or ZIP archive.")
+            st.warning("Please upload a folder, DICOM files or a ZIP archive.")
             return
 
         files_to_process = collect_uploaded_files(uploaded_files)

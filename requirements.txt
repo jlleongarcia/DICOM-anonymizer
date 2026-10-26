@@ -59,7 +59,7 @@ pyarrow==21.0.0
     # via streamlit
 pydeck==0.9.1
     # via streamlit
-pydicom==3.0.1
+pydicom==3.0.2
     # via dicom-anonymizer
 python-dateutil==2.9.0.post0
     # via pandas
