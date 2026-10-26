@@ -82,16 +82,16 @@ _INT_VRS = {"US", "SS", "UL", "SL"}
 _FLOAT_VRS = {"FL", "FD"}
 
 
-def anonymize_dicom_file(input_path, output_path, tags_to_anonymize):
+def anonymize_dicom_bytes(data, name, tags_to_anonymize):
     """
     Anonymizes a single DICOM file by removing or replacing specific tags.
-    Returns True on success, False on failure.
+    Returns the anonymized file as bytes, or None if it is not a DICOM file.
     """
     try:
-        ds = pydicom.dcmread(input_path)
+        ds = pydicom.dcmread(io.BytesIO(data))
     except pydicom.errors.InvalidDicomError:
-        logging.warning(f"Skipping non-DICOM file: {input_path}")
-        return False
+        logging.warning(f"Skipping non-DICOM file: {name}")
+        return None
 
     # Anonymize specific tags
     for group, element in tags_to_anonymize:
@@ -119,18 +119,36 @@ def anonymize_dicom_file(input_path, output_path, tags_to_anonymize):
     ds.remove_private_tags()
 
     # Update file meta information with the new SOP Instance UID
-    if (0x0002, 0x0003) in ds.file_meta:
+    if (0x0002, 0x0003) in ds.file_meta and "SOPInstanceUID" in ds:
         ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
 
-    # Ensure the output directory exists
-    output_dir = os.path.dirname(output_path)
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    # Save the anonymized file to memory; nothing is written to disk
+    buffer = io.BytesIO()
+    ds.save_as(buffer)
+    logging.info(f"Anonymized '{name}'")
+    return buffer.getvalue()
 
-    # Save the anonymized file
-    ds.save_as(output_path)
-    logging.info(f"Anonymized '{input_path}' -> '{output_path}'")
-    return True
+
+def collect_uploaded_files(uploaded_files):
+    """
+    Expand the uploaded files into ``(relative_path, bytes)`` pairs.
+
+    ZIP archives are unpacked so that their folder structure is preserved in
+    the output; any other upload is taken as a single file.
+    """
+    collected = []
+    for uploaded in uploaded_files:
+        if uploaded.name.lower().endswith(".zip"):
+            try:
+                with zipfile.ZipFile(io.BytesIO(uploaded.getvalue())) as archive:
+                    for info in archive.infolist():
+                        if not info.is_dir():
+                            collected.append((info.filename, archive.read(info)))
+            except zipfile.BadZipFile:
+                st.error(f"{uploaded.name}: not a valid ZIP archive - skipped.")
+        else:
+            collected.append((uploaded.name, uploaded.getvalue()))
+    return collected
 
 
 # --- Tag-modification helpers ---
@@ -222,9 +240,9 @@ def apply_modifications(ds, modifications):
     return results
 
 
-def _modified_filename(name):
+def _modified_filename(name, suffix="modified"):
     root, ext = os.path.splitext(name)
-    return f"{root}_modified{ext or '.dcm'}"
+    return f"{root}_{suffix}{ext or '.dcm'}"
 
 
 def _tag_label(tag):
@@ -295,66 +313,95 @@ def render_anonymize_tab():
                     if is_checked:
                         selected_tags.append(tag)
 
-    input_dir = st.text_input(
-        "Enter the full path to the directory containing DICOM files:",
-        placeholder="e.g., C:/Users/YourUser/Desktop/DICOM_data",
+    st.markdown("---")
+
+    # No type filter: DICOM files often have no extension. Non-DICOM files are
+    # skipped during processing, and ZIP archives keep their folder structure.
+    uploaded_files = st.file_uploader(
+        "Upload DICOM files, or a ZIP archive containing them",
+        accept_multiple_files=True,
+        key="anonymize_uploader",
     )
 
-    if st.button("Anonymize Directory"):
+    if st.button("Anonymize files", key="anonymize_btn"):
         if not selected_tags:
             st.warning("Please select at least one tag to anonymize.")
-        elif input_dir and os.path.isdir(input_dir):
-            output_dir = os.path.join(input_dir, "anonymized")
+            return
+        if not uploaded_files:
+            st.warning("Please upload at least one DICOM file or ZIP archive.")
+            return
 
-            with st.spinner(f"Scanning directory: {input_dir}..."):
-                files_to_process = []
-                for root, _, files in os.walk(input_dir):
-                    # Important: Skip the output directory to prevent re-processing
-                    if root.startswith(output_dir):
-                        continue
-                    for filename in files:
-                        files_to_process.append(os.path.join(root, filename))
+        files_to_process = collect_uploaded_files(uploaded_files)
+        if not files_to_process:
+            st.warning("No files found in the upload.")
+            return
 
-            if not files_to_process:
-                st.warning("No files found in the specified directory.")
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        anonymized_files = []
+        skipped = []
+
+        for i, (path, data) in enumerate(files_to_process):
+            anonymized = anonymize_dicom_bytes(data, path, selected_tags)
+            if anonymized is None:
+                skipped.append(path)
             else:
-                st.success(
-                    f"Found {len(files_to_process)} files. Starting anonymization..."
-                )
+                anonymized_files.append((path, anonymized))
 
-                progress_bar = st.progress(0)
-                status_text = st.empty()
-                anonymized_count = 0
-
-                for i, file_path in enumerate(files_to_process):
-                    relative_path = os.path.relpath(file_path, input_dir)
-                    output_file_path = os.path.join(output_dir, relative_path)
-
-                    if anonymize_dicom_file(
-                        file_path, output_file_path, selected_tags
-                    ):
-                        anonymized_count += 1
-
-                    # Update progress bar
-                    progress = (i + 1) / len(files_to_process)
-                    progress_bar.progress(progress)
-                    status_text.text(
-                        f"Processing file {i + 1}/{len(files_to_process)}: "
-                        f"{os.path.basename(file_path)}"
-                    )
-
-                status_text.empty()
-                progress_bar.empty()
-                st.success(
-                    f"Anonymization complete! {anonymized_count} DICOM files were "
-                    "processed and saved to:"
-                )
-                st.code(output_dir, language=None)
-        else:
-            st.error(
-                "The provided path is not a valid directory. "
-                "Please check the path and try again."
+            # Update progress bar
+            progress_bar.progress((i + 1) / len(files_to_process))
+            status_text.text(
+                f"Processing file {i + 1}/{len(files_to_process)}: "
+                f"{os.path.basename(path)}"
             )
+
+        status_text.empty()
+        progress_bar.empty()
+
+        st.session_state["anonymize_output"] = {
+            "files": anonymized_files,
+            "skipped": skipped,
+        }
+
+    output = st.session_state.get("anonymize_output")
+    if not output:
+        return
+
+    st.markdown("---")
+    if output["skipped"]:
+        with st.expander(
+            f"{len(output['skipped'])} non-DICOM file(s) skipped", expanded=False
+        ):
+            for path in output["skipped"]:
+                st.write(path)
+
+    if not output["files"]:
+        st.warning("None of the uploaded files were valid DICOM files.")
+        return
+
+    st.success(f"Anonymization complete! {len(output['files'])} DICOM file(s) processed.")
+
+    if len(output["files"]) == 1:
+        path, data = output["files"][0]
+        st.download_button(
+            "Download anonymized file",
+            data=data,
+            file_name=_modified_filename(os.path.basename(path), "anonymized"),
+            mime="application/dicom",
+            key="anonymize_dl_single",
+        )
+    else:
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+            for path, data in output["files"]:
+                archive.writestr(path, data)
+        st.download_button(
+            "Download all as ZIP",
+            data=zip_buffer.getvalue(),
+            file_name="anonymized_dicom.zip",
+            mime="application/zip",
+            key="anonymize_dl_zip",
+        )
 
 
 def render_modify_tab():
@@ -388,7 +435,7 @@ def render_modify_tab():
     extra_rows = st.data_editor(
         [{"Tag": "", "New value": ""}],
         num_rows="dynamic",
-        use_container_width=True,
+        width="stretch",
         key="modify_extra_editor",
         column_config={
             "Tag": st.column_config.TextColumn("Tag", help="Keyword or group,element"),
@@ -495,7 +542,7 @@ def render_modify_tab():
         )
 
 
-anonymize_tab, modify_tab = st.tabs(["Anonymize Directory", "Modify Tags (Upload)"])
+anonymize_tab, modify_tab = st.tabs(["Anonymize Files", "Modify Tags"])
 
 with anonymize_tab:
     render_anonymize_tab()

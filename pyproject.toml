@@ -1,10 +1,12 @@
 [project]
 name = "dicom-anonymizer"
 version = "0.1.0"
-description = "Add your description here"
+description = "Streamlit web app to anonymize and edit DICOM file metadata"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.13"
 dependencies = [
     "pydicom==3.0.1",
-    "streamlit==1.45.1",
+    "streamlit==1.66.1",
 ]
